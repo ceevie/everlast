@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  OFFER_SENT
+  WON
+  LOST
+}
+
+enum TaskCategory {
+  FOLLOW_UP
+  GENERAL
+  SYSTEM
+}
+
+enum TaskType {
+  CALL
+  EMAIL
+  MEETING
+  OTHER
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+}
+
+enum WorkflowTriggerEvent {
+  LEAD_CREATED
+}
+
+enum WorkflowStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WorkflowActionType {
+  CREATE_TASK
+}
+
+enum UserRole {
+  ADMIN
+  SALES_MANAGER
+  SALES_REP
+}
+
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug        String   @unique
+  settings    Json?
+  contactEmail String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  leads     Lead[]
+  tasks     Task[]
+  workflows Workflow[]
+  users     User[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+
+  email        String   @unique
+  name         String
+  role         UserRole @default(SALES_REP)
+  passwordHash String?  // optional (Social Login => null)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tasks        Task[]   @relation("TaskAssignedTo")
+  leads        Lead[]   @relation("LeadOwner")
+}
+
+model Lead {
+  id             String      @id @default(cuid())
+  tenantId       String
+  tenant         Tenant      @relation(fields: [tenantId], references: [id])
+
+  ownerId        String?
+  owner          User?       @relation("LeadOwner", fields: [ownerId], references: [id])
+
+  name           String
+  email          String?
+  phone          String?
+
+  status         LeadStatus  @default(NEW)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Optionale Grundlage für spätere inaktivitätsbasierte Follow-Ups
+  lastActivityAt DateTime?
+
+  // Relations
+  tasks          Task[]
+
+  @@index([tenantId])
+  @@index([status])
+  @@index([ownerId])
+  @@map("leads")
+}
+
+model Task {
+  id          String         @id @default(cuid())
+  tenantId    String
+  tenant      Tenant         @relation(fields: [tenantId], references: [id])
+
+  // Optional: Task kann einem Lead zugeordnet sein
+  leadId      String?
+  lead        Lead?          @relation(fields: [leadId], references: [id])
+
+  // Optional: Task kann einem User zugeordnet sein
+  assignedToUserId String?
+  assignedTo       User?    @relation("TaskAssignedTo", fields: [assignedToUserId], references: [id])
+
+  title       String
+  category    TaskCategory   @default(FOLLOW_UP)
+  type        TaskType       @default(CALL)
+  status      TaskStatus     @default(OPEN)
+
+  dueAt       DateTime
+  createdAt   DateTime       @default(now())
+  completedAt DateTime?
+
+  @@index([tenantId, status, dueAt])
+  @@index([leadId])
+  @@index([tenantId, category])
+  @@index([assignedToUserId])
+  @@map("tasks")
+}
+
+model Workflow {
+  id           String               @id @default(cuid())
+  tenantId     String
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+
+  name         String
+  description  String?
+
+  triggerEvent WorkflowTriggerEvent
+  status       WorkflowStatus       @default(ACTIVE)
+
+  // Optionale Bedingungen (z. B. nur für bestimmte Lead-Status)
+  conditions   Json?
+
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  steps        WorkflowStep[]
+
+  @@index([tenantId, triggerEvent, status])
+  @@map("workflows")
+}
+
+model WorkflowStep {
+  id          String             @id @default(cuid())
+  workflowId  String
+  workflow    Workflow           @relation(fields: [workflowId], references: [id])
+
+  order       Int
+
+  actionType  WorkflowActionType
+  config      Json?
+
+  createdAt   DateTime           @default(now())
+
+  @@index([workflowId, order])
+  @@map("workflow_steps")
+}
+

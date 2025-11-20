@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/Toni/Desktop/code/everlast/apps/web/app/tasks/page.tsx"],"sourcesContent":["export default function TasksPage() {\r\n  return <div className=\"text-xl font-semibold\">Tasks – Work in progress</div>;\r\n}\r\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBAAO,8OAAC;QAAI,WAAU;kBAAwB;;;;;;AAChD"}}]
+}
