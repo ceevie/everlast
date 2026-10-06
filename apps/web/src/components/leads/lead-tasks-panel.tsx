@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LeadTaskForm } from "@/components/leads/lead-task-form";
 import { StatusBadge } from "@/components/status-badge";
-import { Task } from "@everlast/types";
+import { Task, TaskStatus } from "@everlast/types";
 
 type LeadTasksPanelProps = {
   leadId: string;
@@ -19,7 +19,7 @@ export function LeadTasksPanel({ leadId, leadName }: LeadTasksPanelProps) {
   const { data: tasks, isLoading } = useLeadTasks(leadId);
   const updateTaskStatus = useUpdateTaskStatus();
 
-  const openTasks = (tasks ?? []).filter((task) => task.status === "OPEN");
+  const openTasks = (tasks ?? []).filter((task) => task.status === TaskStatus.OPEN);
 
   return (
     <Card className="h-full">
@@ -47,7 +47,7 @@ export function LeadTasksPanel({ leadId, leadName }: LeadTasksPanelProps) {
                 key={task.id}
                 task={task}
                 onComplete={() =>
-                  updateTaskStatus.mutate({ id: task.id, status: "DONE" })
+                  updateTaskStatus.mutate({ id: task.id, status: TaskStatus.DONE })
                 }
                 loading={updateTaskStatus.isPending}
               />

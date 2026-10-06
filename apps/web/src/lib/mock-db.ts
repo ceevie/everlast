@@ -387,6 +387,9 @@ export function addLead(payload: CreateLeadDTO): Lead {
     name: payload.name,
     email: payload.email ?? null,
     phone: payload.phone ?? null,
+    source: payload.source ?? LeadSource.MANUAL,
+    emailOptIn: payload.emailOptIn ?? true,
+    whatsappOptIn: payload.whatsappOptIn ?? false,
     status: LeadStatus.NEW,
     lastActivityAt: null,
     createdAt: new Date().toISOString(),
@@ -467,7 +470,7 @@ export function reopenTaskDb(payload: CompleteTaskDTO): Task | undefined {
 export function addWorkflow(payload: CreateWorkflowDTO): Workflow {
   const workflow: Workflow = {
     id: generateId("workflow"),
-    tenantId: payload.tenantId,
+    tenantId: payload.tenantId ?? mockDb.tenantId,
     name: payload.name,
     description: payload.description ?? null,
     triggerEvent: payload.triggerEvent,
