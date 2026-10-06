@@ -16,4 +16,4 @@ RUN pnpm --filter @everlast/prisma generate
 RUN pnpm --filter @everlast/prisma build
 RUN pnpm --filter api build
 
-CMD ["sh", "-c", "pnpm --filter @everlast/prisma db:push && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "pnpm --filter @everlast/prisma db:push && pnpm --filter @everlast/prisma seed && node apps/api/dist/main.js"]
