@@ -1,4 +1,5 @@
 import {
+  LeadSource,
   TaskCategory,
   TaskType,
   WorkflowActionType,
@@ -6,11 +7,22 @@ import {
   WorkflowTriggerEvent,
 } from "../enums";
 
+export type WorkflowConditions = {
+  source?: LeadSource | LeadSource[];
+  requireEmail?: boolean;
+  requirePhone?: boolean;
+};
+
 export type WorkflowStepConfig = {
-  title: string;
+  actionType?: WorkflowActionType;
+  title?: string;
   category?: TaskCategory;
   type?: TaskType;
   dueInHours?: number;
+  subject?: string;
+  body?: string;
+  delayHours?: number;
+  delayMinutes?: number;
 };
 
 export type WorkflowStep = {
@@ -29,7 +41,7 @@ export type Workflow = {
   description?: string | null;
   triggerEvent: WorkflowTriggerEvent;
   status: WorkflowStatus;
-  conditions?: Record<string, unknown> | null;
+  conditions?: WorkflowConditions | null;
   createdAt: string;
   updatedAt: string;
   steps: WorkflowStep[];

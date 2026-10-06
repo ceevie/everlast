@@ -1,33 +1,19 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
-# Install OpenSSL for Prisma
 RUN apk add --no-cache openssl libc6-compat
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 WORKDIR /app
 
-# Pnpm über Corepack installieren
-RUN corepack enable
-
-# Copy workspace config
-COPY package.json pnpm-workspace.yaml ./
-
-# Copy packages
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api ./apps/api
-COPY packages/prisma ./packages/prisma
-COPY packages/types ./packages/types
+COPY packages ./packages
 
-#Dependencies installieren (wird sauber gecached)
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 
-# Generate Prisma Client and Build Package
-WORKDIR /app/packages/prisma
-RUN pnpm run generate
-RUN pnpm run build
+RUN pnpm --filter @everlast/types build
+RUN pnpm --filter @everlast/prisma generate
+RUN pnpm --filter @everlast/prisma build
+RUN pnpm --filter api build
 
-# Build API
-WORKDIR /app/apps/api
-RUN pnpm run build
-
-# Start
-CMD ["sh", "-c", "cd /app/packages/prisma && npx prisma db push && npx prisma db seed && cd /app/apps/api && node dist/main"]
-
+CMD ["sh", "-c", "pnpm --filter @everlast/prisma db:push && node apps/api/dist/main.js"]

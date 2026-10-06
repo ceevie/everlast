@@ -9,8 +9,9 @@ import {
   WorkflowActionType,
   WorkflowStepConfig,
   WorkflowTriggerEvent,
+  LeadSource,
 } from "@everlast/types";
-import { Bolt, ListTodo } from "lucide-react";
+import { Bolt, Clock, ListTodo, Mail } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,11 +25,25 @@ import {
 } from "@/components/ui/select";
 import { useCreateWorkflow } from "@/hooks/use-workflows";
 
-const DEFAULT_STEP: WorkflowStepConfig = {
+const DEFAULT_TASK_STEP: WorkflowStepConfig = {
+  actionType: WorkflowActionType.CREATE_TASK,
   title: "Kunde anrufen",
   category: TaskCategory.FOLLOW_UP,
   type: TaskType.CALL,
   dueInHours: 24,
+};
+
+const DEFAULT_EMAIL_STEP: WorkflowStepConfig = {
+  actionType: WorkflowActionType.SEND_EMAIL,
+  title: "E-Mail",
+  subject: "Hallo {{name}}",
+  body: "Hallo {{name}},\n\nvielen Dank für dein Interesse. Wir melden uns in Kürze.\n",
+};
+
+const DEFAULT_WAIT_STEP: WorkflowStepConfig = {
+  actionType: WorkflowActionType.WAIT,
+  title: "Warten",
+  delayHours: 48,
 };
 
 const triggerOptions = [
@@ -40,6 +55,18 @@ const triggerOptions = [
 ];
 
 const stepActions = [
+  {
+    value: WorkflowActionType.SEND_EMAIL,
+    label: "E-Mail senden",
+    description: "Nachricht über Resend verschicken.",
+    icon: Mail,
+  },
+  {
+    value: WorkflowActionType.WAIT,
+    label: "Warten",
+    description: "Pause vor dem nächsten Step.",
+    icon: Clock,
+  },
   {
     value: WorkflowActionType.CREATE_TASK,
     label: "Create Task",
@@ -62,6 +89,7 @@ export default function NewWorkflowPage() {
   const [steps, setSteps] = useState<WorkflowStepConfig[]>([]);
   const [sidebar, setSidebar] = useState<SidebarContext>({ type: "trigger" });
   const [showStepMenu, setShowStepMenu] = useState(false);
+  const [metaOnly, setMetaOnly] = useState(false);
 
   const activeStep = useMemo(() => {
     if (sidebar.type === "step") {
@@ -70,16 +98,23 @@ export default function NewWorkflowPage() {
     return null;
   }, [sidebar, steps]);
 
-  const addStep = () => {
+  const addStep = (actionType: WorkflowActionType) => {
     if (!trigger) {
       toast.error("Bitte zuerst einen Trigger wählen.");
       setSidebar({ type: "trigger" });
       setShowStepMenu(false);
       return;
     }
-    const newStep = { ...DEFAULT_STEP };
-    setSteps((prev) => [...prev, newStep]);
-    setSidebar({ type: "step", index: steps.length });
+    const defaults = {
+      [WorkflowActionType.SEND_EMAIL]: DEFAULT_EMAIL_STEP,
+      [WorkflowActionType.WAIT]: DEFAULT_WAIT_STEP,
+      [WorkflowActionType.CREATE_TASK]: DEFAULT_TASK_STEP,
+    } as const;
+    const newStep = { ...defaults[actionType] };
+    setSteps((prev) => {
+      setSidebar({ type: "step", index: prev.length });
+      return [...prev, newStep];
+    });
     setShowStepMenu(false);
   };
 
@@ -103,6 +138,7 @@ export default function NewWorkflowPage() {
       name,
       description,
       triggerEvent: trigger,
+      conditions: metaOnly ? { source: LeadSource.META } : undefined,
       steps,
     });
     toast.success("Workflow gespeichert");
@@ -144,6 +180,14 @@ export default function NewWorkflowPage() {
                 onChange={(e) => setDescription(e.target.value)}
               />
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={metaOnly}
+                onChange={(e) => setMetaOnly(e.target.checked)}
+              />
+              Nur Leads aus Meta-Kampagnen
+            </label>
           </div>
 
           <div className="flex flex-col items-center gap-6 py-6">
@@ -184,7 +228,7 @@ export default function NewWorkflowPage() {
                     <button
                       key={action.value}
                       className="flex w-full items-start gap-3 rounded-xl px-3 py-2 text-left hover:bg-muted"
-                      onClick={addStep}
+                      onClick={() => addStep(action.value)}
                     >
                       <span className="mt-1 rounded-full bg-muted p-1">
                         <action.icon className="h-4 w-4" />
@@ -257,6 +301,28 @@ function TriggerCard({
   );
 }
 
+function stepIcon(actionType?: WorkflowActionType) {
+  if (actionType === WorkflowActionType.SEND_EMAIL) return Mail;
+  if (actionType === WorkflowActionType.WAIT) return Clock;
+  return ListTodo;
+}
+
+function stepSubtitle(step: WorkflowStepConfig) {
+  if (step.actionType === WorkflowActionType.SEND_EMAIL) {
+    return step.subject || "E-Mail";
+  }
+  if (step.actionType === WorkflowActionType.WAIT) {
+    const hours = step.delayHours ?? 0;
+    const minutes = step.delayMinutes ?? 0;
+    const parts = [
+      hours ? `${hours} Stunden` : null,
+      minutes ? `${minutes} Minuten` : null,
+    ].filter(Boolean);
+    return parts.length ? `${parts.join(" ")} warten` : "Warten";
+  }
+  return `${step.type ?? "TASK"} • due in ${step.dueInHours ?? 0}h`;
+}
+
 function StepCard({
   step,
   isActive,
@@ -266,6 +332,7 @@ function StepCard({
   isActive: boolean;
   onClick: () => void;
 }) {
+  const Icon = stepIcon(step.actionType);
   return (
     <button
       type="button"
@@ -274,13 +341,13 @@ function StepCard({
     >
       <div className="flex items-center gap-4">
         <span className="rounded-full bg-muted p-3 text-muted-foreground">
-          <ListTodo className="h-4 w-4" />
+          <Icon className="h-4 w-4" />
         </span>
         <div>
-          <p className="font-semibold text-foreground">{step.title}</p>
-          <p className="text-xs text-muted-foreground">
-            {step.type} • due in {step.dueInHours ?? 0}h
+          <p className="font-semibold text-foreground">
+            {step.title || step.actionType || "Step"}
           </p>
+          <p className="text-xs text-muted-foreground">{stepSubtitle(step)}</p>
         </div>
       </div>
     </button>
@@ -323,6 +390,82 @@ function StepSidebar({
   step: WorkflowStepConfig;
   onChange: (patch: Partial<WorkflowStepConfig>) => void;
 }) {
+  if (step.actionType === WorkflowActionType.SEND_EMAIL) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">E-Mail konfigurieren</h3>
+        <p className="text-xs text-muted-foreground">
+          Platzhalter: {"{{name}}"}, {"{{email}}"}, {"{{phone}}"}
+        </p>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">
+            Interner Titel
+          </label>
+          <Input
+            value={step.title ?? ""}
+            onChange={(e) => onChange({ title: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">
+            Betreff
+          </label>
+          <Input
+            value={step.subject ?? ""}
+            onChange={(e) => onChange({ subject: e.target.value })}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">
+            Text
+          </label>
+          <Textarea
+            rows={8}
+            value={step.body ?? ""}
+            onChange={(e) => onChange({ body: e.target.value })}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (step.actionType === WorkflowActionType.WAIT) {
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Warten</h3>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">
+            Stunden
+          </label>
+          <Input
+            type="number"
+            min={0}
+            value={step.delayHours ?? 0}
+            onChange={(e) =>
+              onChange({ delayHours: Number(e.target.value) || 0 })
+            }
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">
+            Minuten
+          </label>
+          <Input
+            type="number"
+            min={0}
+            value={step.delayMinutes ?? 0}
+            onChange={(e) =>
+              onChange({ delayMinutes: Number(e.target.value) || 0 })
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            Minuten sind vor allem für lokale Tests gedacht.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Create Task konfigurieren</h3>
@@ -331,7 +474,7 @@ function StepSidebar({
           Titel
         </label>
         <Input
-          value={step.title}
+          value={step.title ?? ""}
           onChange={(e) => onChange({ title: e.target.value })}
         />
       </div>

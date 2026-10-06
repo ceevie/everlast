@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lead } from "@everlast/types";
+import { Lead, LeadSource } from "@everlast/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatDistanceToNow } from "date-fns";
@@ -50,6 +50,22 @@ export function LeadDetailsCard({ lead }: LeadDetailsCardProps) {
               <p className="text-muted-foreground">Telefon</p>
               <p>{lead.phone ?? "—"}</p>
             </div>
+            <div>
+              <p className="text-muted-foreground">Quelle</p>
+              <p>
+                {lead.source === LeadSource.META
+                  ? "Meta-Kampagne"
+                  : lead.source === LeadSource.WEBFORM
+                    ? "Webformular"
+                    : "Manuell"}
+              </p>
+            </div>
+            {lead.formId ? (
+              <div>
+                <p className="text-muted-foreground">Formular</p>
+                <p className="font-mono text-xs">{lead.formId}</p>
+              </div>
+            ) : null}
           </div>
         )}
 

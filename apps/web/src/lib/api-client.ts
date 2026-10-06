@@ -50,6 +50,11 @@ export const apiClient = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  addLeadNote: (id: string, body: string) =>
+    fetchApi<Lead>(`/leads/${id}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
 
   // Tasks
   getTasks: (leadId?: string) => {

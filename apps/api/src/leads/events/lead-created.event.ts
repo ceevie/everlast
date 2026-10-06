@@ -5,4 +5,3 @@ export class LeadCreatedEvent {
     public readonly email?: string,
   ) {}
 }
-

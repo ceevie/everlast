@@ -4,6 +4,7 @@ import {
   CreateTaskDTO,
   CreateWorkflowDTO,
   Lead,
+  LeadSource,
   LeadStatus,
   Task,
   TaskCategory,
@@ -174,6 +175,9 @@ const leads = leadSeeds.map((seed, index) => ({
   name: seed.name,
   email: seed.email,
   phone: seed.phone,
+  source: LeadSource.MANUAL,
+  emailOptIn: true,
+  whatsappOptIn: false,
   status: seed.status,
   lastActivityAt:
     index % 3 === 0 ? new Date(now - 1000 * 60 * 60 * (index + 3)).toISOString() : null,

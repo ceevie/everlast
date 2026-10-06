@@ -4,6 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:web": "pnpm --filter @everlast/web dev",
+    "dev:inngest": "npx inngest-cli@latest dev -u http://localhost:3000/inngest",
+    "db:setup": "pnpm --filter @everlast/types build && pnpm --filter @everlast/prisma generate && pnpm --filter @everlast/prisma build && pnpm --filter @everlast/prisma db:push && pnpm --filter @everlast/prisma seed",
     "build": "turbo run build",
     "lint": "turbo run lint"
   },

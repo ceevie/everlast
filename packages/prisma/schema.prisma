@@ -16,6 +16,12 @@ enum LeadStatus {
   LOST
 }
 
+enum LeadSource {
+  MANUAL
+  META
+  WEBFORM
+}
+
 enum TaskCategory {
   FOLLOW_UP
   GENERAL
@@ -45,12 +51,36 @@ enum WorkflowStatus {
 
 enum WorkflowActionType {
   CREATE_TASK
+  SEND_EMAIL
+  WAIT
 }
 
 enum UserRole {
   ADMIN
   SALES_MANAGER
   SALES_REP
+}
+
+enum IntegrationProvider {
+  META
+}
+
+enum WorkflowEnrollmentStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  FAILED
+}
+
+enum CommunicationChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum CommunicationStatus {
+  SENT
+  FAILED
+  SKIPPED
 }
 
 
@@ -64,10 +94,14 @@ model Tenant {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  leads     Lead[]
-  tasks     Task[]
-  workflows Workflow[]
-  users     User[]
+  leads        Lead[]
+  tasks        Task[]
+  workflows    Workflow[]
+  users        User[]
+  integrations   Integration[]
+  enrollments    WorkflowEnrollment[]
+  communications Communication[]
+  notes          Note[]
 
   @@map("tenants")
 }
@@ -100,6 +134,17 @@ model Lead {
   name           String
   email          String?
   phone          String?
+  phoneE164      String?
+
+  source         LeadSource  @default(MANUAL)
+  externalId     String?
+  campaignId     String?
+  adId           String?
+  formId         String?
+
+  emailOptIn     Boolean     @default(true)
+  whatsappOptIn  Boolean     @default(false)
+  rawPayload     Json?
 
   status         LeadStatus  @default(NEW)
   createdAt      DateTime    @default(now())
@@ -110,11 +155,35 @@ model Lead {
 
   // Relations
   tasks          Task[]
+  enrollments    WorkflowEnrollment[]
+  communications Communication[]
+  notes          Note[]
 
+  @@unique([tenantId, source, externalId])
   @@index([tenantId])
+  @@index([tenantId, source])
   @@index([status])
   @@index([ownerId])
   @@map("leads")
+}
+
+model Integration {
+  id             String               @id @default(cuid())
+  tenantId       String
+  tenant         Tenant               @relation(fields: [tenantId], references: [id])
+
+  provider       IntegrationProvider
+  externalPageId String?
+  accessToken    String?
+  isActive       Boolean              @default(true)
+  metadata       Json?
+
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@unique([provider, externalPageId])
+  @@index([tenantId, provider])
+  @@map("integrations")
 }
 
 model Task {
@@ -164,9 +233,34 @@ model Workflow {
   updatedAt    DateTime             @updatedAt
 
   steps        WorkflowStep[]
+  enrollments  WorkflowEnrollment[]
 
   @@index([tenantId, triggerEvent, status])
   @@map("workflows")
+}
+
+model WorkflowEnrollment {
+  id          String                    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant                    @relation(fields: [tenantId], references: [id])
+
+  workflowId  String
+  workflow    Workflow                  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  leadId      String
+  lead        Lead                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  status      WorkflowEnrollmentStatus  @default(ACTIVE)
+  currentStep Int                       @default(0)
+  nextRunAt   DateTime?
+  lastError   String?
+
+  enrolledAt  DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  @@unique([workflowId, leadId])
+  @@index([tenantId, status, nextRunAt])
+  @@map("workflow_enrollments")
 }
 
 model WorkflowStep {
@@ -183,5 +277,45 @@ model WorkflowStep {
 
   @@index([workflowId, order])
   @@map("workflow_steps")
+}
+
+model Communication {
+  id                String                @id @default(cuid())
+  tenantId          String
+  tenant            Tenant                @relation(fields: [tenantId], references: [id])
+
+  leadId            String
+  lead              Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  enrollmentId      String?
+  channel           CommunicationChannel
+  status            CommunicationStatus
+  subject           String?
+  preview           String?
+  providerMessageId String?
+  error             String?
+
+  createdAt         DateTime              @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([tenantId, channel, createdAt])
+  @@map("communications")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  body      String
+  author    String   @default("Team")
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId, createdAt])
+  @@map("notes")
 }
 

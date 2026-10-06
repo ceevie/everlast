@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, UseGuards, Patch, Param, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Patch, Param, NotFoundException, BadRequestException } from '@nestjs/common';
 import { LeadsService } from './leads.service';
 import { TenantGuard } from '../common/guards/tenant.guard';
 import { TenantId } from '../common/decorators/tenant.decorator';
-import { CreateLeadDTO } from '@everlast/types';
+import { CreateLeadDTO, CreateLeadNoteDTO } from '@everlast/types';
 
 @Controller('leads')
 @UseGuards(TenantGuard) // Ganzer Controller geschützt
@@ -27,6 +27,20 @@ export class LeadsController {
       const lead = await this.leadsService.findOne(tenantId, id);
       if (!lead) throw new NotFoundException('Lead not found');
       return lead;
+  }
+
+  @Post(':id/notes')
+  async addNote(
+    @TenantId() tenantId: string,
+    @Param('id') id: string,
+    @Body() dto: CreateLeadNoteDTO,
+  ) {
+    if (!dto?.body?.trim()) {
+      throw new BadRequestException("Notiz darf nicht leer sein");
+    }
+    const updated = await this.leadsService.addNote(tenantId, id, dto.body, dto.author);
+    if (!updated) throw new NotFoundException("Lead not found");
+    return updated;
   }
 
   @Patch(':id')

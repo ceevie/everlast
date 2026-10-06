@@ -34,6 +34,33 @@ async function main() {
   });
   console.log(`✅ User: ${user.name}`);
 
+  const pageId = process.env.META_PAGE_ID;
+  if (pageId) {
+    const integration = await prisma.integration.upsert({
+      where: {
+        provider_externalPageId: {
+          provider: "META",
+          externalPageId: pageId,
+        },
+      },
+      update: {
+        tenantId: tenant.id,
+        accessToken: process.env.META_PAGE_ACCESS_TOKEN || undefined,
+        isActive: true,
+      },
+      create: {
+        tenantId: tenant.id,
+        provider: "META",
+        externalPageId: pageId,
+        accessToken: process.env.META_PAGE_ACCESS_TOKEN || null,
+        isActive: true,
+      },
+    });
+    console.log(`✅ Meta-Integration: Page ${integration.externalPageId}`);
+  } else {
+    console.log("ℹ️  META_PAGE_ID nicht gesetzt — Meta-Integration übersprungen");
+  }
+
   console.log('✅ Seeding finished (Basic setup only).');
 }
 

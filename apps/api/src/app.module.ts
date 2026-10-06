@@ -6,6 +6,8 @@ import { LeadsModule } from './leads/leads.module';
 import { TasksModule } from './tasks/tasks.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { SequenceModule } from './sequence/sequence.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { DashboardModule } from './dashboard/dashboard.module';
     TasksModule,
     WorkflowsModule,
     DashboardModule,
+    WebhooksModule,
+    SequenceModule,
   ],
   controllers: [AppController],
   providers: [PrismaService],

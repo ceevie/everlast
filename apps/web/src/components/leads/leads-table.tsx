@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Lead, LeadStatus } from "@everlast/types";
+import { Lead, LeadSource, LeadStatus } from "@everlast/types";
 import { LeadStatusSelect } from "@/components/leads/lead-status-select";
 import {
   Table,
@@ -71,6 +71,19 @@ const columns: ColumnDef<Lead>[] = [
     accessorKey: "phone",
     header: "Telefon",
     cell: ({ row }) => <span>{row.original.phone ?? "—"}</span>,
+  },
+  {
+    accessorKey: "source",
+    header: "Quelle",
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">
+        {row.original.source === LeadSource.META
+          ? "Meta"
+          : row.original.source === LeadSource.WEBFORM
+            ? "Webformular"
+            : "Manuell"}
+      </span>
+    ),
   },
   {
     accessorKey: "createdAt",

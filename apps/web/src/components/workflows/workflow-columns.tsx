@@ -26,7 +26,10 @@ export const workflowColumns: ColumnDef<WorkflowRow>[] = [
     accessorKey: "triggerEvent",
     header: "Trigger",
     cell: ({ row }) => (
-      <span className="text-sm text-muted-foreground">{row.original.triggerEvent}</span>
+      <span className="text-sm text-muted-foreground">
+        {row.original.triggerEvent}
+        {row.original.conditions?.source === "META" ? " · Meta" : ""}
+      </span>
     ),
   },
   {

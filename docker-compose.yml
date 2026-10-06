@@ -20,6 +20,12 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: "postgresql://user:password@postgres:5432/everlast?schema=public"
+      META_VERIFY_TOKEN: "everlast-meta-verify"
+      META_APP_SECRET: ""
+      INNGEST_EVENT_KEY: ""
+      INNGEST_SIGNING_KEY: ""
+      RESEND_API_KEY: ""
+      RESEND_FROM: ""
     depends_on:
       - postgres
 

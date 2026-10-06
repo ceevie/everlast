@@ -7,6 +7,12 @@ export enum LeadStatus {
   LOST = "LOST",
 }
 
+export enum LeadSource {
+  MANUAL = "MANUAL",
+  META = "META",
+  WEBFORM = "WEBFORM",
+}
+
 export enum TaskCategory {
   FOLLOW_UP = "FOLLOW_UP",
   GENERAL = "GENERAL",
@@ -36,6 +42,26 @@ export enum WorkflowStatus {
 
 export enum WorkflowActionType {
   CREATE_TASK = "CREATE_TASK",
+  SEND_EMAIL = "SEND_EMAIL",
+  WAIT = "WAIT",
+}
+
+export enum CommunicationChannel {
+  EMAIL = "EMAIL",
+  WHATSAPP = "WHATSAPP",
+}
+
+export enum CommunicationStatus {
+  SENT = "SENT",
+  FAILED = "FAILED",
+  SKIPPED = "SKIPPED",
+}
+
+export enum WorkflowEnrollmentStatus {
+  ACTIVE = "ACTIVE",
+  PAUSED = "PAUSED",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
 }
 
 export enum UserRole {

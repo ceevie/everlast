@@ -1,12 +1,13 @@
 import { WorkflowStatus, WorkflowTriggerEvent, WorkflowActionType } from "../enums";
-import { WorkflowStepConfig } from "./types";
+import { WorkflowConditions, WorkflowStepConfig } from "./types";
 
 export type CreateWorkflowDTO = {
-  tenantId: string;
+  tenantId?: string;
   name: string;
   description?: string;
   triggerEvent: WorkflowTriggerEvent;
   status?: WorkflowStatus;
+  conditions?: WorkflowConditions | null;
   steps: WorkflowStepConfig[];
 };
 
@@ -26,7 +27,7 @@ export type WorkflowResponseDTO = {
   description?: string | null;
   triggerEvent: WorkflowTriggerEvent;
   status: WorkflowStatus;
-  conditions?: Record<string, unknown> | null;
+  conditions?: WorkflowConditions | null;
   createdAt: string; 
   updatedAt: string; 
   steps: WorkflowStepResponseDTO[]; 

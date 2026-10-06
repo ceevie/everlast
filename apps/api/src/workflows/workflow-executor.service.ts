@@ -1,70 +1,112 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
-import { PrismaService } from '../prisma.service';
-import { LeadCreatedEvent } from '../leads/events/lead-created.event';
+import { Injectable, Logger } from "@nestjs/common";
+import { OnEvent } from "@nestjs/event-emitter";
 import {
+  Lead,
+  LeadSource,
+  WorkflowEnrollmentStatus,
   WorkflowStatus,
   WorkflowTriggerEvent,
-  WorkflowActionType,
-  TaskCategory,
-  TaskType,
-} from '@everlast/prisma';
+} from "@everlast/prisma";
+import { PrismaService } from "../prisma.service";
+import { LeadCreatedEvent } from "../leads/events/lead-created.event";
+import { SequenceQueueService } from "../sequence/sequence-queue.service";
+
+type WorkflowConditions = {
+  source?: LeadSource | LeadSource[];
+  requireEmail?: boolean;
+  requirePhone?: boolean;
+};
 
 @Injectable()
 export class WorkflowExecutorService {
   private readonly logger = new Logger(WorkflowExecutorService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sequenceQueue: SequenceQueueService,
+  ) {}
 
-  // Lauscht auf 'lead.created'
-  @OnEvent('lead.created', { async: true }) // async: true = läuft im Hintergrund
+  @OnEvent("lead.created", { async: true })
   async handleLeadCreated(event: LeadCreatedEvent) {
-    this.logger.log(`Processing workflows for new lead: ${event.leadId}`);
+    const lead = await this.prisma.lead.findFirst({
+      where: { id: event.leadId, tenantId: event.tenantId },
+    });
+    if (!lead) {
+      this.logger.warn(`Lead ${event.leadId} nicht gefunden, Workflows übersprungen`);
+      return;
+    }
 
-    // 1. Relevante Workflows finden
     const workflows = await this.prisma.workflow.findMany({
       where: {
         tenantId: event.tenantId,
         status: WorkflowStatus.ACTIVE,
         triggerEvent: WorkflowTriggerEvent.LEAD_CREATED,
       },
-      include: { steps: { orderBy: { order: 'asc' } } },
+      include: { steps: { orderBy: { order: "asc" } } },
     });
 
-    // 2. Workflows ausführen
     for (const workflow of workflows) {
-      this.logger.log(`Executing Workflow "${workflow.name}" (${workflow.id})`);
-      
-      for (const step of workflow.steps) {
-        try {
-          if (step.actionType === WorkflowActionType.CREATE_TASK) {
-            await this.createTask(step, event);
-          }
-        } catch (error) {
-          this.logger.error(
-            `Error in workflow ${workflow.id} step ${step.id}`,
-            error instanceof Error ? error.stack : String(error)
-          );
-        }
+      if (!this.matchesConditions(lead, workflow.conditions)) {
+        continue;
+      }
+
+      const enrollment = await this.enroll(workflow.id, lead);
+      if (!enrollment) continue;
+
+      this.logger.log(
+        `Lead ${lead.id} in Workflow "${workflow.name}" eingeschrieben`,
+      );
+
+      try {
+        await this.sequenceQueue.enqueue(enrollment.id);
+      } catch (error) {
+        this.logger.error(
+          `Sequenz für Workflow ${workflow.id} konnte nicht gestartet werden`,
+          error instanceof Error ? error.stack : String(error),
+        );
       }
     }
   }
 
-  private async createTask(step: any, event: LeadCreatedEvent) {
-    const config = step.config as any || {};
-    const dueInHours = config.dueInHours ?? 24;
-    
-    await this.prisma.task.create({
+  private matchesConditions(lead: Lead, rawConditions: unknown): boolean {
+    if (!rawConditions || typeof rawConditions !== "object") return true;
+
+    const conditions = rawConditions as WorkflowConditions;
+
+    if (conditions.source) {
+      const sources = Array.isArray(conditions.source)
+        ? conditions.source
+        : [conditions.source];
+      if (!sources.includes(lead.source)) return false;
+    }
+
+    if (conditions.requireEmail && !lead.email) return false;
+    if (conditions.requirePhone && !(lead.phoneE164 || lead.phone)) return false;
+
+    return true;
+  }
+
+  private async enroll(workflowId: string, lead: Lead) {
+    const existing = await this.prisma.workflowEnrollment.findUnique({
+      where: {
+        workflowId_leadId: { workflowId, leadId: lead.id },
+      },
+    });
+    if (existing) {
+      this.logger.log(
+        `Lead ${lead.id} ist bereits in Workflow ${workflowId} eingeschrieben`,
+      );
+      return null;
+    }
+
+    return this.prisma.workflowEnrollment.create({
       data: {
-        tenantId: event.tenantId,
-        leadId: event.leadId,
-        title: config.title ?? 'Follow-Up Task',
-        category: config.category ?? TaskCategory.FOLLOW_UP,
-        type: config.type ?? TaskType.CALL,
-        dueAt: new Date(Date.now() + dueInHours * 60 * 60 * 1000),
-        status: 'OPEN',
+        tenantId: lead.tenantId,
+        workflowId,
+        leadId: lead.id,
+        status: WorkflowEnrollmentStatus.ACTIVE,
+        currentStep: 0,
       },
     });
   }
 }
-
